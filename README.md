@@ -60,8 +60,10 @@ src/sismos.js                   Detección USGS + intensidad por ubicación
 src/alertar.js                  Ciclo de alertas (agrupa réplicas)
 src/responder.js                Preguntas de seguimiento
 src/tsunami.js                  Boletines del PTWC para la costa Pacífica
+src/directorio.js               Las 12 webs ciudadanas, con cobertura por zona
 src/ingesta.js                  Trae los recursos de ayuda de las webs ciudadanas
 src/fuentes/                    Un conector por web ciudadana
+workflows/ayuda/                Menú: quiero ayudar / necesito ayuda
 src/comparar.js                 Un sismo visto desde varias ciudades
 workflows/onboarding/           Flujo de suscripción por WhatsApp
 docs/ONBOARDING.md              Cómo se capta y por qué así
@@ -90,6 +92,21 @@ Centinela · Esto es lo que tengo cerca de Pereira:
   Verificado el 12 de ago · emergency-rosy
 ```
 
+### Dos puertas, no una lista de diez cosas
+
+Quien viene a dar y quien viene a pedir están en momentos opuestos: al primero le sobra tiempo, al segundo no. Por eso el menú abre con dos botones y no con un listado único, que obligaría al damnificado a leer opciones de donación para llegar a la suya.
+
+**Quiero ayudar** → llevar cosas · donar dinero · donar sangre · ser voluntario · ofrecer alojamiento
+**Necesito ayuda** → buscar a alguien · mascota perdida · dónde dormir · ayuda económica · reportar daños
+
+Los títulos de los botones son exactamente las frases que reconoce el clasificador, así que tocar una fila y escribirla a mano entran por el mismo camino. El workflow solo abre la puerta; la respuesta la compone `src/responder.js`, que sí puede consultar los acopios cercanos.
+
+### La regla: primero un lugar, después una web
+
+Ante cada categoría el bot busca un sitio físico al que puedas ir hoy. Si no hay ninguno cerca, manda a la web **que cubre tu zona**, no a cualquiera: mandar a alguien de Tumaco a una plataforma del Eje Cafetero es peor que no responder.
+
+Y cuando ninguna cubre su zona, lo dice y nombra igual la que existe, con su límite: *"Techo Cafetero — por ahora solo cubre Pereira y Armenia"*. Callárselo dejaría a quien ofrece una habitación en Quibdó creyendo que su ofrecimiento no le sirve a nadie.
+
 Toda respuesta lleva fuente y fecha de verificación. No es adorno: media pregunta que llega es «¿esto es real?», y con campañas falsas circulando por WhatsApp, un dato sin procedencia vale menos que ninguno.
 
 **El bot nunca dicta un número de cuenta.** Ante «¿a qué cuenta consigno?» nombra la organización y manda a su sitio oficial, donde el número lo controla quien recibe la plata. Hay una prueba que falla si alguien agrega uno.
@@ -97,8 +114,14 @@ Toda respuesta lleva fuente y fecha de verificación. No es adorno: media pregun
 | Fuente | Qué aporta | Estado |
 |---|---|---|
 | [Centros de Acopio Colombia](https://emergency-rosy.vercel.app) | 145 acopios en 27 departamentos, con GPS, horario y qué recibe cada uno | ✅ conectada |
-| [Cuidar a Colombia](https://cuidarcolombia.vercel.app) | 219 registros: donaciones, bancos de sangre, afectación | pendiente |
-| [Colombia Hub](https://colombiahub.org) | Organizaciones verificadas y acopios de la diáspora | pendiente |
+| [Cuidar a Colombia](https://cuidarcolombia.vercel.app) | 219 registros: donaciones, bancos de sangre, afectación | en el directorio |
+| [Colombia Te Busca](https://colombiatebusca.com) · [Encontrados](https://encontrados.co) | 5.416 y 4.900+ personas reportadas | en el directorio |
+| [Ayuda Colombia](https://ayuda-colombia.vercel.app) | 146 mascotas perdidas, la única que las cubre | en el directorio |
+| [Techo Cafetero](https://techocafetero.app) | Alojamiento temporal en el Eje Cafetero | en el directorio |
+| [Help Them Directly](https://helpthemdirectly.org/es/) · [Colombia Hub](https://colombiahub.org) · [Mapa del Terremoto](https://www.mapadelterremoto.com) · [Mapa de Daños](https://terremotovenezuela.com) · [Colombia Te Amo](https://colombiateamo.com) · [Asocapitales](https://asocapitales.co/terremoto-colombia.html) | Donación directa, diáspora, voluntariado, daños | en el directorio |
+
+*Conectada* = el bot lee sus datos cada media hora y responde con direcciones concretas.
+*En el directorio* = el bot la recomienda según la zona y la necesidad, pero todavía no raspa sus datos.
 
 `recursos` es una sola tabla polimórfica con un `tipo`, y la vista `recursos_unicos` se queda con la fila verificada más reciente por nombre. Ahí está el punto: cuando cinco webs listen el mismo acopio, la gente verá uno.
 
