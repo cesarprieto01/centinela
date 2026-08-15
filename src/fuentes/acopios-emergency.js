@@ -23,8 +23,15 @@ import { createHash } from "node:crypto";
 
 export const fuente = "emergency-rosy";
 export const tipo = "acopio";
+export const nombre = "Centros de Acopio Colombia";
+export const metodo = "rsc";
+// Sin contacto público todavía: correcto es escribirle a quien mantiene el
+// sitio antes de dejarle un cron encima cada 30 min (ver nota al final del
+// archivo). Se deja null hasta tener ese dato.
+export const contacto = null;
 
 const SITIO = "https://emergency-rosy.vercel.app";
+export const url = SITIO;
 
 /** Reconstruye el payload RSC repartido en varios `self.__next_f.push`. */
 function payloadRsc(html) {

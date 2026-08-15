@@ -141,6 +141,44 @@ language sql stable as $$
   limit p_limite;
 $$;
 
+-- ---------------------------------------------------------------------- fuentes
+
+-- Catálogo de fuentes scrapeadas, con su salud.
+--
+-- Qué sitios se leen vive en código (`FUENTES` en src/ingesta.js) y ahí se
+-- queda: sumar una fuente sigue siendo un archivo en src/fuentes y una línea
+-- en ese arreglo. Esta tabla no reemplaza eso, sólo lo vuelve auditable sin
+-- abrir JavaScript — nombre, a qué tipo(s) de recurso sirve, y si la última
+-- corrida de `src/ingesta.js` funcionó.
+--
+-- No es el directorio de las catorce webs ciudadanas (`src/directorio.js`):
+-- ese es producto, para decidir a qué sitio mandar a alguien que el bot no
+-- puede resolver con un lugar físico cerca. Esta tabla es sólo la porción de
+-- esas webs que además se scrapea hacia `recursos`.
+create table if not exists fuentes (
+  clave              text primary key,        -- igual a recursos.fuente, ej. 'emergency-rosy'
+  nombre             text not null,
+  url                text not null,
+  tipos              recurso_tipo[] not null,
+  metodo             text not null,            -- 'rsc' | 'dom' | 'api'
+  contacto           text,                     -- de quien mantiene el sitio, antes de automatizar más
+
+  activa             boolean not null default true,
+  frecuencia_minutos integer not null default 30,
+
+  -- Estado de la última corrida de `ingerir()`, no de todas: si algo se
+  -- rompe, lo que importa para decidir si el bot sigue sirviendo el sitio es
+  -- el estado ahora, no un historial completo.
+  ultima_corrida_en  timestamptz,
+  ultima_corrida_ok  boolean,
+  ultimo_error       text,
+  registros          integer,
+
+  creado_en          timestamptz not null default now()
+);
+
+create index if not exists fuentes_activa_idx on fuentes (activa);
+
 -- ---------------------------------------------------------------------- RLS
 
 -- El bot escribe con la service key desde el servidor; nadie más toca esto.
@@ -153,8 +191,14 @@ alter table suscriptores enable row level security;
 alter table respondidos  enable row level security;
 alter table enviados     enable row level security;
 alter table recursos     enable row level security;
+alter table fuentes      enable row level security;
 
 -- Los recursos son información pública de emergencia: lectura abierta para
 -- que cualquiera pueda consumirlos. Los suscriptores no: son teléfonos.
 drop policy if exists recursos_lectura_publica on recursos;
 create policy recursos_lectura_publica on recursos for select using (true);
+
+-- El estado de los conectores no es un dato sensible y sirve para un futuro
+-- panel de salud del scraping sin exponer nada de suscriptores.
+drop policy if exists fuentes_lectura_publica on fuentes;
+create policy fuentes_lectura_publica on fuentes for select using (true);

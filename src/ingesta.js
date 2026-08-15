@@ -8,7 +8,7 @@
 // agregar un archivo en src/fuentes y una línea en FUENTES.
 
 import * as acopiosEmergency from "./fuentes/acopios-emergency.js";
-import { reemplazarRecursos, usandoSupabase } from "./db.js";
+import { reemplazarRecursos, registrarFuente, registrarCorrida, usandoSupabase } from "./db.js";
 
 const FUENTES = [acopiosEmergency];
 
@@ -16,6 +16,19 @@ export async function ingerir({ seco = false } = {}) {
   const resumen = [];
 
   for (const conector of FUENTES) {
+    // En seco no escribe nada, ni siquiera el catálogo: es el modo para
+    // mirar sin dejar rastro.
+    if (!seco) {
+      await registrarFuente({
+        clave: conector.fuente,
+        nombre: conector.nombre,
+        url: conector.url,
+        tipos: [conector.tipo],
+        metodo: conector.metodo,
+        contacto: conector.contacto ?? null,
+      });
+    }
+
     try {
       const filas = await conector.extraer();
 
@@ -28,6 +41,7 @@ export async function ingerir({ seco = false } = {}) {
         if (filas.length > 3) console.log(`    · … y ${filas.length - 3} más`);
       } else {
         await reemplazarRecursos(conector.fuente, filas);
+        await registrarCorrida(conector.fuente, { ok: true, filas: filas.length });
         console.log(`${conector.fuente}: ${filas.length} ${conector.tipo}(s) guardados`);
       }
 
@@ -36,6 +50,9 @@ export async function ingerir({ seco = false } = {}) {
       // Un conector roto no puede tumbar los demás: el bot sigue sirviendo lo
       // que ya tiene guardado, que es viejo pero cierto.
       console.error(`${conector.fuente} falló: ${error.message}`);
+      if (!seco) {
+        await registrarCorrida(conector.fuente, { ok: false, error: error.message });
+      }
       resumen.push({ fuente: conector.fuente, error: error.message });
     }
   }

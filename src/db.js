@@ -211,6 +211,66 @@ export async function reemplazarRecursos(fuente, filas) {
   return filas.length;
 }
 
+// ---------------------------------------------------------------- fuentes
+
+/**
+ * Registra o actualiza el metadato estático de una fuente scrapeada.
+ *
+ * Se llama en cada corrida de `src/ingesta.js`, no sólo la primera vez: es
+ * un upsert por `clave`, así que si alguien cambia el nombre o suma un tipo
+ * al conector, la próxima corrida lo refleja sin migración aparte.
+ */
+export async function registrarFuente({ clave, nombre, url, tipos, metodo, contacto = null }) {
+  if (usandoSupabase) {
+    await pedir("fuentes?on_conflict=clave", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({ clave, nombre, url, tipos, metodo, contacto }),
+    });
+    return;
+  }
+  const todas = await leerJson("fuentes.json", []);
+  const previa = todas.find((f) => f.clave === clave) ?? {};
+  const otras = todas.filter((f) => f.clave !== clave);
+  await escribirJson("fuentes.json", [
+    ...otras,
+    { ...previa, clave, nombre, url, tipos, metodo, contacto },
+  ]);
+}
+
+/**
+ * Deja constancia de cómo salió la última corrida de un conector.
+ *
+ * Sobreescribe el estado anterior a propósito: lo que importa para decidir
+ * si el bot sigue sirviendo esta fuente es cómo está ahora, no un historial
+ * completo de corridas.
+ */
+export async function registrarCorrida(clave, { ok, filas = null, error = null }) {
+  const cambios = {
+    ultima_corrida_en: new Date().toISOString(),
+    ultima_corrida_ok: ok,
+    registros: filas,
+    ultimo_error: error,
+  };
+  if (usandoSupabase) {
+    await pedir(`fuentes?clave=eq.${encodeURIComponent(clave)}`, {
+      method: "PATCH",
+      body: JSON.stringify(cambios),
+    });
+    return;
+  }
+  const todas = await leerJson("fuentes.json", []);
+  await escribirJson(
+    "fuentes.json",
+    todas.map((f) => (f.clave === clave ? { ...f, ...cambios } : f))
+  );
+}
+
+export async function leerFuentes() {
+  if (!usandoSupabase) return leerJson("fuentes.json", []);
+  return pedir("fuentes?select=*");
+}
+
 /** Dedupe entre fuentes: mismo tipo y mismo nombre normalizado es lo mismo. */
 function clave(recurso) {
   return (
